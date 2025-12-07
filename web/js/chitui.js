@@ -202,6 +202,8 @@ function showPrinter(id) {
   }
 
   $('#uploadPrinter').val(id)
+  renderGcodeHistory()
+  updateGcodeControls()
 }
 
 function createTable(name, data, active = false) {
@@ -489,3 +491,139 @@ function setToastTimestamp(target) {
     new bootstrap.Tooltip(tooltipTriggerEl)
   })
 })()
+
+function sendGcodeCommand(command = null) {
+  if (!currentPrinter) {
+    return
+  }
+  var cmd = (command !== null ? command : $('#gcodeInput').val()).trim()
+  if (cmd.length === 0) {
+    updateGcodeStatus('Enter a command to send', 'warning', currentPrinter)
+    return
+  }
+  var commandId = Date.now().toString(16) + Math.random().toString(16).slice(2, 8)
+  toggleGcodeSpinner(true)
+  updateGcodeStatus('Sending…', 'info', currentPrinter)
+  addGcodeHistoryEntry(currentPrinter, { commandId: commandId, command: cmd, status: 'pending', timestamp: Date.now() })
+  socket.emit('gcode_command', { id: currentPrinter, command: cmd, commandId: commandId })
+}
+
+$('#btnSendGcode').on('click', function () {
+  sendGcodeCommand()
+})
+
+$('#gcodeInput').on('keydown', function (e) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    sendGcodeCommand()
+  }
+})
+
+$('#btnClearHistory').on('click', function () {
+  if (!currentPrinter) return
+  gcodeHistory[currentPrinter] = []
+  renderGcodeHistory()
+})
+
+$('#btnCopyLast').on('click', function () {
+  var last = getLastGcodeEntry()
+  if (!last) return
+  $('#gcodeInput').val(last.command)
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(last.command)
+  }
+  updateGcodeStatus('Last command copied', 'secondary', currentPrinter)
+})
+
+$('#btnResendLast').on('click', function () {
+  var last = getLastGcodeEntry()
+  if (!last) return
+  $('#gcodeInput').val(last.command)
+  sendGcodeCommand(last.command)
+})
+
+function updateGcodeControls() {
+  var hasPrinter = !!currentPrinter
+  $('#btnSendGcode').prop('disabled', !hasPrinter)
+  $('#gcodeInput').prop('disabled', !hasPrinter)
+  renderGcodeHistory()
+  if (!hasPrinter) {
+    updateGcodeStatus('No printer selected', 'secondary')
+  } else {
+    updateGcodeStatus('Ready', 'success')
+  }
+}
+
+function updateGcodeStatus(text, style = 'secondary', printerId = null) {
+  if (printerId && currentPrinter && printerId !== currentPrinter) {
+    return
+  }
+  var badge = $('#gcodeStatus')
+  badge.text(text)
+  badge.removeClass(function (index, css) {
+    return (css.match(/\btext-bg-\S+/g) || []).join(' ')
+  })
+  badge.addClass('text-bg-' + style)
+}
+
+function toggleGcodeSpinner(show) {
+  if (show) {
+    $('#gcodeSendSpinner').removeClass('visually-hidden')
+    $('#btnSendGcode .send-label').addClass('visually-hidden')
+  } else {
+    $('#gcodeSendSpinner').addClass('visually-hidden')
+    $('#btnSendGcode .send-label').removeClass('visually-hidden')
+  }
+}
+
+function addGcodeHistoryEntry(printerId, entry) {
+  if (!gcodeHistory[printerId]) {
+    gcodeHistory[printerId] = []
+  }
+  gcodeHistory[printerId].push(entry)
+  renderGcodeHistory()
+}
+
+function updateGcodeHistoryEntry(printerId, commandId, updates) {
+  if (!printerId || !gcodeHistory[printerId]) return
+  var entry = gcodeHistory[printerId].find(e => e.commandId === commandId)
+  if (entry) {
+    Object.assign(entry, updates)
+    renderGcodeHistory()
+  }
+}
+
+function renderGcodeHistory() {
+  var list = $('#gcodeHistory')
+  list.empty()
+  var history = currentPrinter ? (gcodeHistory[currentPrinter] || []) : []
+  history.slice().reverse().forEach(function (entry) {
+    var statusClass = 'secondary'
+    if (entry.status === 'reply') statusClass = 'success'
+    else if (entry.status === 'error') statusClass = 'danger'
+    else if (entry.status === 'pending') statusClass = 'info'
+    else if (entry.status === 'sent') statusClass = 'primary'
+    var responseText = entry.response ? '<div class="small text-body-secondary mt-1">' + entry.response + '</div>' : ''
+    var item = $('<li class="list-group-item d-flex justify-content-between align-items-start"></li>')
+    var body = $('<div class="ms-2 me-auto"></div>')
+    body.append('<div class="fw-semibold">' + entry.command + '</div>')
+    body.append(responseText)
+    var time = new Date(entry.timestamp || Date.now()).toLocaleTimeString()
+    body.append('<div class="small text-body-tertiary">' + time + '</div>')
+    item.append(body)
+    item.append('<span class="badge text-bg-' + statusClass + ' rounded-pill">' + entry.status + '</span>')
+    list.append(item)
+  })
+  var hasHistory = history.length > 0
+  $('#btnClearHistory, #btnCopyLast, #btnResendLast').prop('disabled', !hasHistory || !currentPrinter)
+}
+
+function getLastGcodeEntry() {
+  if (!currentPrinter || !gcodeHistory[currentPrinter] || gcodeHistory[currentPrinter].length === 0) return null
+  return gcodeHistory[currentPrinter][gcodeHistory[currentPrinter].length - 1]
+}
+
+function showGcodeToast(message) {
+  $('#toastGcodeError .toast-body').text(message)
+  toastGcodeError.show()
+}
