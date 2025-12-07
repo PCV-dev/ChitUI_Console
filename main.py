@@ -193,11 +193,14 @@ def sio_handle_action_print(data):
 
 
 def emit_command_error(event_name, message, command_id, printer_id):
-    socketio.emit(event_name, {
-        "error": message,
+    payload = {
+        "error": {
+            "message": str(message)
+        },
         "commandId": command_id,
         "printerId": printer_id
-    })
+    }
+    socketio.emit(event_name, payload)
 
 
 def validate_command_payload(printer_id, command, command_id, error_event):
@@ -307,10 +310,18 @@ def send_printer_cmd(id, cmd, data=None, request_id=None):
         "Topic": "sdcp/request/" + id
     }
     logger.debug("printer << \n{p}", p=json.dumps(payload, indent=4))
-    if id in websockets:
+    if id not in websockets:
+        logger.error("Failed to send command {cmd} to printer {printer}: no active websocket.",
+                     cmd=cmd, printer=id)
+        return None
+
+    try:
         websockets[id].send(json.dumps(payload))
         return payload['Data']['RequestID']
-    return None
+    except Exception as exc:
+        logger.error("Failed to send command {cmd} to printer {printer}: {error}",
+                     cmd=cmd, printer=id, error=exc)
+        return None
 
 
 def send_firmware_command(id, command, command_id=None):
@@ -434,14 +445,21 @@ def ws_msg_handler(ws, msg):
                 "type": "error",
                 "payload": data.get('Data', {})
             })
+        error_data = data.get('Data', {})
+        error_message = error_data.get('Data', {}).get('Message') if isinstance(
+            error_data.get('Data', {}), dict) else None
         socketio.emit('printer_error', data)
         socketio.emit('firmware_error', {
-            "error": data.get('Data', {}),
+            "error": {
+                "message": error_message or str(error_data)
+            },
             "commandId": command_id,
             "printerId": printer_id
         })
         socketio.emit('gcode_error', {
-            "error": data.get('Data', {}),
+            "error": {
+                "message": error_message or str(error_data)
+            },
             "commandId": command_id,
             "printerId": printer_id
         })
