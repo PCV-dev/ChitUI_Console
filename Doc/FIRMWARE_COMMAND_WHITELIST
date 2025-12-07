@@ -1,0 +1,9 @@
+# Standard-Whitelist für Firmware-/G-code-Befehle
+# Jede Zeile kann einen Befehl oder eine kommagetrennte Liste enthalten.
+# Passe die Liste nach Bedarf an, um weitere Befehle freizuschalten.
+M105
+M503
+M114
+G0
+G1
+G28

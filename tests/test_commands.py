@@ -76,7 +76,7 @@ class TestCommandValidation(unittest.TestCase):
 
         with patch.object(main.socketio, 'emit') as emit_mock:
             is_valid = main.validate_command_payload(
-                'printer-1', 'M999', 'cmd-2', 'firmware_error')
+                'printer-1', 'M8513', 'cmd-2', 'firmware_error')
 
         self.assertFalse(is_valid)
         emit_mock.assert_called_once()
@@ -89,13 +89,13 @@ class TestCommandValidation(unittest.TestCase):
 
     def test_validate_command_enforces_blacklist(self):
         main.COMMAND_BLACKLIST.clear()
-        main.COMMAND_BLACKLIST.update({'M999'})
+        main.COMMAND_BLACKLIST.update({'M8513'})
         main.printers['printer-1'] = {'connection': 'abc'}
         main.websockets['printer-1'] = object()
 
         with patch.object(main.socketio, 'emit') as emit_mock:
             is_valid = main.validate_command_payload(
-                'printer-1', 'M999', 'cmd-3', 'firmware_error')
+                'printer-1', 'M8513', 'cmd-3', 'firmware_error')
 
         self.assertFalse(is_valid)
         emit_mock.assert_called_once()

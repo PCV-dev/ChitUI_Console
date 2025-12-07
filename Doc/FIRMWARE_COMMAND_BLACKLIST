@@ -1,0 +1,5 @@
+# Standard-Blacklist für Firmware-/G-code-Befehle
+# Entferne Befehle aus dieser Liste nur, wenn du sie bewusst zulassen willst.
+# Zeilen dürfen Kommentare oder kommagetrennte Befehle enthalten.
+M8513
+M112

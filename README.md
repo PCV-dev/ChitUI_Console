@@ -95,3 +95,12 @@ docker run --rm --name chitui --net=host chitui:latest
 Configuration is done via environment variables:
 * `PORT` to set the HTTP port of the web interface (default: `54780`)
 * `DEBUG` to enable debug logging, log colorization and code reloading (default: `False`)
+* `COMMAND_HISTORY_LIMIT` maximale Anzahl der gespeicherten Konsolen-Befehle pro Drucker (default: `50`)
+
+### Vordefinierte Whitelist/Blacklist
+Unter `Doc/` liegen zwei vorkonfigurierte Listen, die ohne weitere Schritte beim Start geladen werden:
+
+* `Doc/FIRMWARE_COMMAND_WHITELIST` enthält eine konservative Auswahl freigegebener Befehle.
+* `Doc/FIRMWARE_COMMAND_BLACKLIST` enthält gesperrte Befehle wie `M8513` und `M112`.
+
+Wenn du weitere Befehle (z. B. `M8513`) senden möchtest, entferne sie aus der Blacklist und füge sie der Whitelist hinzu. Dadurch ist das Senden solcher Befehle möglich, aber nicht ohne bewusste Anpassung.
