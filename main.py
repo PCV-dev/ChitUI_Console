@@ -192,41 +192,52 @@ def sio_handle_action_print(data):
                      "Filename": data['data'], "StartLayer": 0})
 
 
+def emit_command_error(event_name, message, command_id, printer_id):
+    socketio.emit(event_name, {
+        "error": message,
+        "commandId": command_id,
+        "printerId": printer_id
+    })
+
+
+def validate_command_payload(printer_id, command, command_id, error_event):
+    if not printer_id or printer_id not in printers or printer_id not in websockets:
+        logger.error("Received firmware command for inactive or unknown printer: {}", printer_id)
+        emit_command_error(error_event, "Printer is not connected", command_id, printer_id)
+        return False
+
+    if command == "":
+        logger.error("Received empty firmware command for printer: {}", printer_id)
+        emit_command_error(error_event, "Command must not be empty", command_id, printer_id)
+        return False
+
+    if COMMAND_WHITELIST and command not in COMMAND_WHITELIST:
+        logger.error("Rejected firmware command not in whitelist: {}", command)
+        emit_command_error(error_event, "Command not allowed", command_id, printer_id)
+        return False
+
+    if command in COMMAND_BLACKLIST:
+        logger.error("Rejected firmware command in blacklist: {}", command)
+        emit_command_error(error_event, "Command not allowed", command_id, printer_id)
+        return False
+
+    return True
+
+
 @socketio.on('firmware_command')
 def sio_handle_firmware_command(data):
     printer_id = data.get('id')
     command = (data.get('command') or '').strip()
     command_id = data.get('commandId') or os.urandom(8).hex()
 
-    if not printer_id or printer_id not in printers or printer_id not in websockets:
-        logger.error("Received firmware command for inactive or unknown printer: {}", printer_id)
-        socketio.emit('firmware_error',
-                      {"error": "Printer is not connected", "commandId": command_id, "printerId": printer_id})
-        return
-
-    if command == "":
-        logger.error("Received empty firmware command for printer: {}", printer_id)
-        socketio.emit('firmware_error',
-                      {"error": "Command must not be empty", "commandId": command_id, "printerId": printer_id})
-        return
-
-    if COMMAND_WHITELIST and command not in COMMAND_WHITELIST:
-        logger.error("Rejected firmware command not in whitelist: {}", command)
-        socketio.emit('firmware_error',
-                      {"error": "Command not allowed", "commandId": command_id, "printerId": printer_id})
-        return
-
-    if command in COMMAND_BLACKLIST:
-        logger.error("Rejected firmware command in blacklist: {}", command)
-        socketio.emit('firmware_error',
-                      {"error": "Command not allowed", "commandId": command_id, "printerId": printer_id})
+    if not validate_command_payload(printer_id, command, command_id, 'firmware_error'):
         return
 
     request_id = send_firmware_command(printer_id, command, command_id)
 
     if not request_id:
-        socketio.emit('firmware_error',
-                      {"error": "Printer connection unavailable", "commandId": command_id, "printerId": printer_id})
+        emit_command_error('firmware_error', "Printer connection unavailable",
+                           command_id, printer_id)
         return
 
     add_history_entry(printer_id, {
@@ -237,6 +248,33 @@ def sio_handle_firmware_command(data):
     })
 
     socketio.emit('firmware_command_sent',
+                  {"commandId": request_id, "command": command, "printerId": printer_id})
+
+
+@socketio.on('gcode_command')
+def sio_handle_gcode_command(data):
+    printer_id = data.get('id')
+    command = (data.get('command') or '').strip()
+    command_id = data.get('commandId') or os.urandom(8).hex()
+
+    if not validate_command_payload(printer_id, command, command_id, 'gcode_error'):
+        return
+
+    request_id = send_gcode_command(printer_id, command, command_id)
+
+    if not request_id:
+        emit_command_error('gcode_error', "Printer connection unavailable",
+                           command_id, printer_id)
+        return
+
+    add_history_entry(printer_id, {
+        "commandId": request_id,
+        "command": command,
+        "timestamp": int(time.time()),
+        "type": "gcode_command"
+    })
+
+    socketio.emit('gcode_command_sent',
                   {"commandId": request_id, "command": command, "printerId": printer_id})
 
 
@@ -280,6 +318,13 @@ def send_firmware_command(id, command, command_id=None):
         "Command": command
     }
     return send_printer_cmd(id, 512, firmware_data, request_id=command_id)
+
+
+def send_gcode_command(id, command, command_id=None):
+    gcode_data = {
+        "Command": command
+    }
+    return send_printer_cmd(id, 512, gcode_data, request_id=command_id)
 
 
 def add_history_entry(printer_id, entry):
@@ -376,6 +421,7 @@ def ws_msg_handler(ws, msg):
             })
         socketio.emit('printer_response', data)
         socketio.emit('firmware_response', data)
+        socketio.emit('gcode_response', data)
     elif data['Topic'].startswith("sdcp/status/"):
         socketio.emit('printer_status', data)
     elif data['Topic'].startswith("sdcp/attributes/"):
@@ -390,6 +436,11 @@ def ws_msg_handler(ws, msg):
             })
         socketio.emit('printer_error', data)
         socketio.emit('firmware_error', {
+            "error": data.get('Data', {}),
+            "commandId": command_id,
+            "printerId": printer_id
+        })
+        socketio.emit('gcode_error', {
             "error": data.get('Data', {}),
             "commandId": command_id,
             "printerId": printer_id
