@@ -36,10 +36,30 @@ printers = {}
 command_history = {}
 
 COMMAND_HISTORY_LIMIT = int(os.environ.get("COMMAND_HISTORY_LIMIT", 50))
-COMMAND_WHITELIST = set(filter(None, os.environ.get(
-    "FIRMWARE_COMMAND_WHITELIST", "").split(',')))
-COMMAND_BLACKLIST = set(filter(None, os.environ.get(
-    "FIRMWARE_COMMAND_BLACKLIST", "").split(',')))
+
+
+def _load_command_list(default_filename):
+    repo_root = os.path.dirname(os.path.abspath(__file__))
+    default_path = os.path.join(repo_root, "Doc", default_filename)
+    if os.path.isfile(default_path):
+        commands = set()
+        with open(default_path, "r", encoding="utf-8") as command_file:
+            for line in command_file:
+                cleaned = line.strip()
+                if not cleaned or cleaned.startswith('#'):
+                    continue
+                commands.update({cmd.strip()
+                                 for cmd in cleaned.split(',') if cmd.strip()})
+        if commands:
+            logger.info("Loaded %s", default_path)
+            return commands
+
+    logger.info("No %s configured; defaulting to unrestricted commands", default_filename)
+    return set()
+
+
+COMMAND_WHITELIST = _load_command_list("FIRMWARE_COMMAND_WHITELIST")
+COMMAND_BLACKLIST = _load_command_list("FIRMWARE_COMMAND_BLACKLIST")
 
 UPLOAD_FOLDER = '/tmp'
 ALLOWED_EXTENSIONS = {'ctb', 'goo', 'prz'}
