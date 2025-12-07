@@ -71,10 +71,8 @@ Die Gcode-Konsole ermöglicht es, einzelne Befehle direkt an den Drucker zu schi
 
 ### Beispielbefehle
 * `M115` – Firmware- und Geräteinformationen abrufen.
-* `M503` – Aktuelle Konfiguration anzeigen (nützlich zur Fehlersuche).
 * `M106 S0` / `M106 S255` – Lüfter ausschalten bzw. mit voller Leistung einschalten.
 * `G28` – Achsen referenzieren (nur wenn der Bauraum frei ist).
-* `M140 S0` – Heizbett deaktivieren (falls unterstützt).
 
 ### Sicherheits-Hinweise
 * Gcode-Befehle wirken direkt auf die Hardware. Prüfen Sie vor jedem Bewegungsbefehl (z. B. `G0`, `G1`, `G28`), ob sich keine Gegenstände im Weg befinden und das Harz-Becken entfernt ist.
