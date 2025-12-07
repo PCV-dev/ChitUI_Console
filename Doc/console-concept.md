@@ -11,6 +11,24 @@
 - Eingaben werden clientseitig validiert (Format/Länge) und serverseitig auf zulässige Kommando-Whitelist geprüft; rohe Passthroughs sind nicht erlaubt.
 - Pro Nutzer wird eine Rate-Limitierung eingeführt (z. B. 10 Befehle/Minute) und jede Ausführung wird mit Zeitstempel und Benutzer-ID protokolliert.
 
+### Whitelist/Blacklist-Strategie
+- **Whitelist first:** Standardbefehle werden über eine serverseitige Whitelist freigeschaltet (Basis: SDCP-/Diagnosekommandos). Alles nicht gelistete wird blockiert, sofern der Betreiber keine explizite Opt-In-Whitelist hinterlegt.
+- **Blacklist als Bremse:** Eine kurze Blacklist schließt riskante Befehle (z. B. Firmware-Flash, NVRAM-Reset, Achsenkalibrierung ohne Endstopp) aus, selbst wenn sie in der Whitelist stehen. Blacklist-Einträge werden per Default geladen und können nur serverseitig überschrieben werden.
+- **Konfigurierbar per Env:** Whitelist/Blacklist werden über ENV-Variablen gepflegt, damit Betreiber testweise Befehle freischalten oder sperren können, ohne den Code anzupassen.
+- **Feedback im UI:** Der Konsolen-Tab zeigt für eingegebene Kommandos ein Label („zulässig“, „gesperrt durch Whitelist“, „gesperrt durch Blacklist“) und verhindert das Absenden gesperrter Befehle.
+
+### UI-Bestätigung für riskante Befehle
+- Befehle mit Flag „riskant“ (z. B. Bewegungen, Löschen, Firmware/EEPROM-Operationen) triggern verpflichtend den bestehenden Modal-Dialog. Anzeige: Kurzbeschreibung des Risikos, betroffener Drucker, Command-String.
+- Für wiederkehrende Eingaben wird kein „Remember“-Häkchen angeboten; jede riskante Aktion erfordert eine erneute Bestätigung.
+- Der Senden-Button bleibt deaktiviert, solange die Bestätigung nicht erfolgt ist (Button erst nach Modal-Bestätigung aktivieren).
+- Command-Historie markiert riskante Befehle mit einem farbigen Badge, um spätere Audits zu erleichtern.
+
+### Rate-Limiting / Flood-Schutz
+- **Hard-Limit pro Nutzer:** Maximal 10 Befehle/Minute und 2 parallele Befehle pro Drucker. Überschreitungen liefern einen klaren Fehler („Rate-Limit erreicht, bitte in 60 s erneut versuchen“).
+- **Flood-Guard per Queue:** Jede Drucker-Queue nimmt nur einen neuen Eintrag an, wenn die vorherige Antwort oder ein Timeout (z. B. 5 s) vorliegt. Zusätzliche Eingaben landen im UI als „pending“ und lassen sich abbrechen.
+- **Backoff-Mechanismus:** Bei drei Flood-Verstößen in Folge wird die Konsole für 1 Minute gesperrt (visualisiert durch Badge „Gesperrt bis …“).
+- **Serverseitige Metriken:** Rate-Limit-Events und Flood-Sperren werden geloggt, um Fehlverhalten nachvollziehen zu können.
+
 ## Fehlermeldungen
 - **Verbindungsfehler:** „Keine aktive Verbindung zum Drucker. Bitte erneut verbinden.“
 - **Validierungsfehler:** „Befehl unvollständig oder unzulässig. Prüfe Syntax/Whitelist.“
