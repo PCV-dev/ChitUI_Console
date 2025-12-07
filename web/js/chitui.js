@@ -3,8 +3,10 @@ var websockets = []
 var printers = {}
 var currentPrinter = null
 var progress = null
-var gcodeHistory = {}
-var toastGcodeError = null
+const COMMAND_TIMEOUT_MS = 10000
+const pendingCommands = {}
+let commandToast = null
+let uploadToast = null
 
 socket.on("connect", () => {
   console.log('socket.io connected: ' + socket.id);
@@ -63,43 +65,33 @@ socket.on("printer_attributes", (data) => {
   handle_printer_attributes(data)
 });
 
-socket.on("gcode_command_sent", (data) => {
-  updateGcodeStatus('Command sent', 'info', data.printerId)
-  updateGcodeHistoryEntry(data.printerId, data.commandId, { status: 'sent' })
-});
+socket.on("firmware_command_sent", (data) => {
+  startCommandTimeout(data)
+})
 
-socket.on("gcode_response", (data) => {
-  var printerId = data.Data.MainboardID
-  var commandId = data.CommandId || data.Data.RequestID
-  if (!gcodeHistory[printerId] || !gcodeHistory[printerId].some(e => e.commandId === commandId)) {
-    return
+socket.on("gcode_command_sent", (data) => {
+  startCommandTimeout(data)
+})
+
+socket.on("printer_response", (data) => {
+  if (data.CommandId) {
+    resolveCommandTimeout(data.CommandId, `Command ${data.CommandId} finished for printer ${data.Data?.MainboardID || '?'}.`)
   }
-  var payload = data.Data.Data
-  var responseText = ''
-  if (payload) {
-    responseText = payload.Message || JSON.stringify(payload)
+})
+
+socket.on("printer_error", (data) => {
+  if (data.CommandId) {
+    resolveCommandTimeout(data.CommandId, `Command ${data.CommandId} failed for printer ${data.Data?.MainboardID || '?'}.`, 'danger')
   }
-  updateGcodeStatus('Reply received', 'success', printerId)
-  if (printerId === currentPrinter) {
-    toggleGcodeSpinner(false)
-  }
-  updateGcodeHistoryEntry(printerId, commandId, { status: 'reply', response: responseText, payload: payload })
-});
+})
+
+socket.on("firmware_error", (data) => {
+  handleCommandErrorToast(data)
+})
 
 socket.on("gcode_error", (data) => {
-  var printerId = data.printerId || data.Data?.MainboardID
-  var commandId = data.commandId || data.CommandId || data.Data?.RequestID
-  if (!gcodeHistory[printerId] || (commandId && !gcodeHistory[printerId].some(e => e.commandId === commandId))) {
-    return
-  }
-  var message = data.error?.ErrorCode || data.error?.Message || JSON.stringify(data.error || data)
-  updateGcodeStatus('Error: ' + message, 'danger', printerId)
-  if (printerId === currentPrinter) {
-    toggleGcodeSpinner(false)
-  }
-  updateGcodeHistoryEntry(printerId, commandId, { status: 'error', response: message })
-  showGcodeToast(message)
-});
+  handleCommandErrorToast(data)
+})
 
 
 function handle_printer_status(data) {
@@ -368,10 +360,8 @@ function uploadFile() {
   })
   req.done(function (data) {
     $('#uploadFile').val('')
-    $("#toastUpload").show()
-    setTimeout(function () {
-      $("#toastUpload").hide()
-    }, 3000)
+    setToastTimestamp($('#toastUpload .toast-timestamp'))
+    uploadToast.show()
   })
   req.fail(function (data) {
     alert(data.responseJSON.msg)
@@ -401,8 +391,8 @@ $('#toastUpload .btn-close').on('click', function (e) {
 var modalConfirm;
 $(document).ready(function () {
   modalConfirm = new bootstrap.Modal($('#modalConfirm'), {})
-  toastGcodeError = new bootstrap.Toast($('#toastGcodeError'))
-  updateGcodeControls()
+  commandToast = new bootstrap.Toast($('#toastCommand'))
+  uploadToast = new bootstrap.Toast($('#toastUpload'))
 });
 
 $('#btnConfirm').on('click', function () {
@@ -427,6 +417,70 @@ function fileTransferProgress() {
       progress.close()
     }
   };
+}
+
+function startCommandTimeout(data) {
+  if (!data || !data.commandId) {
+    return
+  }
+  if (pendingCommands[data.commandId]) {
+    clearTimeout(pendingCommands[data.commandId].timeout)
+  }
+  showCommandToast('Command sent', `Command "${data.command}" sent to printer ${data.printerId}.`, 'info')
+  pendingCommands[data.commandId] = {
+    timeout: setTimeout(function () {
+      resolveCommandTimeout(data.commandId, `Command "${data.command}" timed out for printer ${data.printerId}.`, 'danger')
+    }, COMMAND_TIMEOUT_MS)
+  }
+}
+
+function resolveCommandTimeout(commandId, message, variant = 'success') {
+  if (pendingCommands[commandId]) {
+    clearTimeout(pendingCommands[commandId].timeout)
+    delete pendingCommands[commandId]
+  }
+  if (message) {
+    showCommandToast('Command update', message, variant)
+  }
+}
+
+function handleCommandErrorToast(data) {
+  var message = data?.error?.message || data?.error || 'Unknown error'
+  resolveCommandTimeout(data.commandId, `${message} (Printer: ${data.printerId || '?'})`, 'danger')
+}
+
+function showCommandToast(title, message, variant = 'info') {
+  var toastEl = $('#toastCommand')
+  if (!commandToast) {
+    commandToast = new bootstrap.Toast(toastEl)
+  }
+  toastEl.find('.toast-title').text(title)
+  toastEl.find('.toast-body-message').text(message)
+  setToastTimestamp(toastEl.find('.toast-timestamp'))
+
+  var toastBody = toastEl.find('.toast-body-message')
+  toastBody.removeClass('text-bg-success text-bg-danger text-bg-warning text-bg-info')
+  switch (variant) {
+    case 'success':
+      toastBody.addClass('text-bg-success')
+      break
+    case 'danger':
+      toastBody.addClass('text-bg-danger')
+      break
+    case 'warning':
+      toastBody.addClass('text-bg-warning')
+      break
+    default:
+      toastBody.addClass('text-bg-info')
+      break
+  }
+  commandToast.show()
+}
+
+function setToastTimestamp(target) {
+  var now = new Date()
+  var timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  target.text(timeStr)
 }
 
 /* global bootstrap: false */
