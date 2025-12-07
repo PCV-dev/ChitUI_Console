@@ -53,6 +53,35 @@ to close:
 deactivate
 ```
 
+## Gcode-Konsole
+Die Gcode-Konsole ermöglicht es, einzelne Befehle direkt an den Drucker zu schicken.
+
+### Voraussetzungen
+* Der Drucker muss sich im selben Netzwerksegment befinden und den UDP-Broadcast auf Port `3000` zulassen, damit die automatische Suche funktioniert.
+* Die Websocket-Verbindung des Druckers auf Port `3030` darf nicht durch eine Firewall blockiert werden.
+* Eine aktive Verbindung zum Drucker ist zwingend erforderlich – ohne ausgewählten Drucker bleibt der **Send**-Button deaktiviert.
+
+### Nutzung
+1. ChitUI wie oben beschrieben starten und im linken Seitenbereich einen gefundenen Drucker auswählen.
+2. Den Tab **G-code** öffnen.
+3. Den gewünschten Befehl im Feld **G-code command** eintragen (z. B. `M115`).
+4. Mit **Send** absenden.
+5. Der Status-Badge unter dem Eingabefeld zeigt den Versandstatus; Rückmeldungen oder Fehler erscheinen zusätzlich in der Liste **History**.
+6. Über **Copy last**, **Resend last** und **Clear** lässt sich der Verlauf weiterverwenden bzw. löschen.
+
+### Beispielbefehle
+* `M115` – Firmware- und Geräteinformationen abrufen.
+* `M503` – Aktuelle Konfiguration anzeigen (nützlich zur Fehlersuche).
+* `M106 S0` / `M106 S255` – Lüfter ausschalten bzw. mit voller Leistung einschalten.
+* `G28` – Achsen referenzieren (nur wenn der Bauraum frei ist).
+* `M140 S0` – Heizbett deaktivieren (falls unterstützt).
+
+### Sicherheits-Hinweise
+* Gcode-Befehle wirken direkt auf die Hardware. Prüfen Sie vor jedem Bewegungsbefehl (z. B. `G0`, `G1`, `G28`), ob sich keine Gegenstände im Weg befinden und das Harz-Becken entfernt ist.
+* Kein Gcode senden, während ein Druck läuft, sofern der Hersteller dies nicht ausdrücklich erlaubt – unbeabsichtigte Stopps oder Kollisionen sind sonst möglich.
+* Die Statusmeldungen in der History sorgfältig prüfen. Wiederholen Sie fehlgeschlagene Befehle nur, wenn die Ursache verstanden und behoben ist.
+* Netzwerk-Sicherheit beachten: Die Gcode-Konsole ermöglicht vollständige Kontrolle über den Drucker; verwenden Sie sie nur in einem vertrauenswürdigen, abgeschirmten Netzwerk.
+
 ## Docker
 As ChitUI needs to broadcast UDP messages on your network segment, running ChitUI in a Docker container requires host networking to be enabled for the container:
 
