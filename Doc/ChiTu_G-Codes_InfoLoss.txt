@@ -1,7 +1,0 @@
-Festgestellte Informationslücken gegenüber den Ausgangsdateien
-===========================================================
-
-- M4000 (Statusausgabe): In der Ursprungsdatei werden die einzelnen Felder der Antwort erläutert (B = Bett-Temperaturen, E1/E2 = Hotend-Temperaturen, X/Y/Z-Positionen, F = Lüfter-PWM, D = Dateiposition/Pausenstatus). Diese Feldbedeutungen fehlen in der strukturierten Fassung.
-- M4001 (Basis-Controller-Konfiguration): Die ursprüngliche Beschreibung enthält die Aufschlüsselung der Antwortfelder (Steps/mm für X/Y/Z/E, T = Maschinentyp und Bauraumabmessungen inkl. Hotend-Anzahl, U = Zeichencodierung, B = Heizbett aktiviert). Diese Details sind in der zusammengefassten Version nicht mehr aufgeführt.
-- M8070 (Peel-/Lift-Distanzen): In der Quellliste sind die Parameter als „Z = Fast Move (peel & lift distance)“ und „S = Slow Move (peel & first move)“ beschrieben. Die strukturierte Datei nennt nur „Fast/Slow Move“ ohne diese Zuordnung zu den Parametern.
-- M8085 (Touchscreen-Einstellungen): Die Originaldatei nennt den zulässigen Wertebereich für die Boot-Logo-Dauer (100–6000 ms) sowie, dass T=0 den Screensaver deaktiviert. Diese Hinweise fehlen in der erweiterten Fassung.
