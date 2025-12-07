@@ -100,9 +100,39 @@
 
         <div class="card">
           <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs" role="tablist" id="navTabs"></ul>
+            <ul class="nav nav-tabs card-header-tabs" role="tablist" id="navTabs">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-GCodeConsole" data-bs-toggle="tab" data-bs-target="#tabGCodeConsole" type="button" role="tab">G-code</button>
+              </li>
+            </ul>
           </div>
-          <div class="tab-content" id="navPanes"></div>
+          <div class="tab-content" id="navPanes">
+            <div class="tab-pane p-3" id="tabGCodeConsole" role="tabpanel" tabindex="0">
+              <div class="row g-2 align-items-center">
+                <div class="col">
+                  <label class="form-label" for="gcodeInput">G-code command</label>
+                  <input type="text" class="form-control" id="gcodeInput" placeholder="M106 S255" />
+                </div>
+                <div class="col-auto mt-4">
+                  <button class="btn btn-primary" id="btnSendGcode" disabled>
+                    <span class="send-label">Send</span>
+                    <span class="spinner-border spinner-border-sm visually-hidden" id="gcodeSendSpinner" role="status" aria-hidden="true"></span>
+                  </button>
+                </div>
+              </div>
+              <div class="row g-2 align-items-center mt-2">
+                <div class="col-auto">
+                  <span class="badge text-bg-secondary" id="gcodeStatus">No printer selected</span>
+                </div>
+              </div>
+              <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="btn btn-outline-primary btn-sm" id="btnCopyLast" disabled>Copy last</button>
+                <button class="btn btn-outline-secondary btn-sm" id="btnResendLast" disabled>Resend last</button>
+                <button class="btn btn-outline-danger btn-sm" id="btnClearHistory" disabled>Clear</button>
+              </div>
+              <ul class="list-group mt-3" id="gcodeHistory"></ul>
+            </div>
+          </div>
         </div>
 
         <div class="card mt-3">
@@ -150,7 +180,17 @@
               </div>
             </div>
           </div>
-        </div>        
+        </div>
+
+        <div id="toastGcodeError" class="toast position-fixed top-0 end-0 m-3" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="toast-header bg-body-secondary">
+            <i class="bi bi-exclamation-triangle-fill text-danger"></i>&nbsp;
+            <strong class="me-auto">G-code</strong>
+            <small>just now</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+          <div class="toast-body bg-body-tertiary">Error</div>
+        </div>
 
       </div>
 
