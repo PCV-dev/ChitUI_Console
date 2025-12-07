@@ -1,0 +1,512 @@
+Elegoo Mars Pro/Saturn
+ChiTu G-Codes
+A listing of g-code commands that I have tested on my Elegoo Mars Pro over UART/Serial
+connection via OctoPrint Terminal. Some of these g-codes also seem to work using “ChiTu HB”
+Debug console via the ethernet connection of the Elegoo Saturn as well.
+Links to Marlin docs are for reference only. Remember ChiTu is not Marlin.
+Informational Codes:
+M27
+Description: Returns current print progress as a relative file position.
+Marlin Doc: https://marlinfw.org/docs/gcode/M027.html
+Response:
+If printing: SD printing byte 0/29771388
+Not printing: Error:It's not printing now!
+Breakdown: Current file position / Total file size
+M110
+Description: Sets line number to ensure controller firmware does not ignore out of order
+commands. OctoPrint seems to set this to zero upon initial serial connection.
+Marlin Doc: https://marlinfw.org/docs/gcode/M110.html
+Input: M110 N0
+- N: line number
+Response: \x00
+M114
+Description: Prints the current axis position in mm from home.
+Marlin Doc: https://marlinfw.org/docs/gcode/M114.html
+Response: ok C: X:0.000000 Y:0.000000 Z:60.000000 E:0.000000
+M115
+Description: Prints firmware build information.
+Marlin Doc: https://marlinfw.org/docs/gcode/M115.html
+Response: ok CBD make it.Date:Dec 3 2019 Time:15:21:14
+M4000
+Description: Prints current status of the hardware.
+Response: ok B:0/0 X:0.000 Y:0.000 Z:-45.796 F:256/0 D:0/0/1
+Breakdown:
+- B: Heated Bed current temp / target temp
+- E1: Hot End 1 current temp / target temp
+- E2: Hot End 2 current temp / target temp
+- X: X-Axis position (mm)
+- Y: Y-Axis position (mm)
+- Z: Z-Axis position (mm)
+- F: Hot End 1 fan PWM / Hot End 2 fan PWM (max 256)
+- D: Current file position / Total file size / File paused
+- File Paused
+- 0: False
+- 1: True
+M4001
+Description: Prints basic controller configuration parameters.
+Response: ok X:0.011430 Y:0.011430 Z:0.000625 E:0.001340
+T:0/0/0/155/1 U:'GBK' B:1
+Breakdown:
+- X: Steps per mm
+- Y: Steps per mm
+- Z: Steps per mm
+- E: Steps per mm
+- T: Machine Type / X Size / Y Size / Z Size / # Hot ends
+- Machine types:
+- 0: XYZ Mode
+- 1: Delta Model
+- U: Character Encoding
+- B: Heated Bed Enabled
+- 0: False
+- 1: True
+M4002
+Description: Prints the firmware version.
+Response: ok V4.3.3_LCDC
+M4006
+Description: Prints the file name of current print job.
+Response: ok ‘_mars_psd_V9angled_sla.ctb’
+Motion Control Codes:
+G0
+Description: Linear Z axis movement.
+Marlin Doc: https://marlinfw.org/docs/gcode/G000-G001.html
+Input: G0 Z<+|-_mm> F<speed_mm/min>
+Response: ok N:<#>
+G28
+Description: Home the build plate.
+Marlin Doc: https://marlinfw.org/docs/gcode/G028.html
+Response: None
+G29
+Description: Marlin docs say it’s used for automatic bed leveling. In practice it just moves
+the build plate up and down within the vat 50 times. Could be useful for “stirring” resin
+that has sat idle in the vat for a while.
+Marlin Doc: https://marlinfw.org/docs/gcode/G029-mbl.html
+Response: ok N:<#>
+G90
+Description: Sets absolute positioning mode for all movements.
+Marlin Doc: https://marlinfw.org/docs/gcode/G090.html
+Response:
+G91
+Description: Sets absolute positioning mode for all movements.
+Marlin Doc: https://marlinfw.org/docs/gcode/G091.html
+Response:
+Print Control Codes:
+M24
+Description: Resume a paused print.
+Marlin Doc: https://marlinfw.org/docs/gcode/M024.html
+Response: ok N:<#>
+M25
+Description: Pause the current print.
+Marlin Doc: https://marlinfw.org/docs/gcode/M025.html
+Response: ok N:<#>
+M33
+Description: Stop the current print.
+Response:
+If printing: ok N:<#>
+If not printing: Error:It's not printing now!
+M106
+Description: Set LED cooling fan speed while printing.
+Marlin Doc: https://marlinfw.org/docs/gcode/M106.html
+Input: M106 S0
+- S: fan speed PWM (min-0, max=256)
+Response: ok N:<#>
+M112
+Description: Emergency stop. Kills all motors and drops serial connection.
+Marlin Doc: https://marlinfw.org/docs/gcode/M112.html
+Response: ok N:<#>
+M6030
+Description: Starts a print job from a file on the USB device.
+Input: M6030 ‘<file_name>’
+Response: ok N:<#>
+Filesystem Codes:
+M20
+Description: Print a listing of files/sizes currently on the storage device.
+Marlin Doc: https://marlinfw.org/docs/gcode/M020.html
+Response:
+Begin file list
+System Volume Information 0
+_d300p_carriage_tensioner_sla.ctb 51793495
+_Diamond_Tray_sla.ctb 13482731
+_Flexi-Rex-improved_sla.ctb 29771388
+_mars_psd_V9angled_sla.ctb 41483585
+End file list
+M28
+Description: Start manual streaming write to the USB device. All commands except the
+M4000 and M29 are treated as write data and the effective data length of a package is
+recommended to be 256 * 5 or shorter.
+The data written is formatted as follows：
+/ Valid data (data length) / data in the file offset (4byte)|
+Test (1byte, XOR operation of all preceding data) / 0x83(1byte) |
+If an incorrect test or data loss occurs, you receive the following message: resend
+Marlin Doc: https://marlinfw.org/docs/gcode/M028.html
+Input: M28 <file_name>
+Response:
+Detected manual streaming. Disabling temperature polling.
+Finish writing with M29. Do NOT attempt to print while
+manually streaming!
+Delete failed :TEST.TXT
+M29
+Description: Stop manual streaming writes and close the file on the storage device.
+Marlin Doc: https://marlinfw.org/docs/gcode/M029.html
+Response:
+Manual streaming done. Re-enabling temperature polling.
+All is well.
+Done saving file!
+// TEST.TXT
+M30
+Description: Delete a file from the USB device.
+Marlin Doc: https://marlinfw.org/docs/gcode/M030.html
+Input: M30 <file_name>
+Response: File deleted :TEST.TXT
+Configuration Codes:
+M8004
+Description: Z axis stepper motor direction
+Input: M8004 I-1
+- 1: reverse
+- -1: forward
+Response: None
+M8005
+Description: Z axis build plate manual movement configuration.
+Input: M8005 Z0
+- 0: Z normal
+- 1: Z- inverted
+Response: None
+M8006
+Description: Z axis default movement speed.
+Input: M8006 I30
+- I: mm/sec
+Reponse:
+M8007
+Description: Jerk setting.
+Input: M8007 I15
+- I: mm/sec
+Response:
+M8008
+Description: Acceleration setting.
+Input: M8008 I1000
+- I: mm/sec
+Response:
+M8010
+Description: Z axis steps per mm setting.
+Input: M8010 S0.000625
+- S: steps/mm
+Response:
+M8013
+Description: Z axis max speed setting.
+Input: M8013 I5
+- I: mm/sec
+Response:
+M8015
+Description: Primary build platform movement speeds.
+Input: M8015 I3 T2
+- I: Initial homing speed
+- T: Peel and lift speed
+Response:
+M8016
+Description: Secondary build platform movement speeds.
+Input: M8016 I3 T3 D1
+- I: Second homing (bounce) speed
+- T: Peel and lift speed between layers
+- D: Z axis hold/dwell time (ms)
+Response:
+M8026
+Description: Maximum Z axis height in mm
+Input: M8026 I155
+- I: mm
+Response:
+M8029
+Description: End stop configuration parameters.
+Input: M8029 I0 T0 S0 C0
+- I: Z axis end stop position type.
+- 0: Unilateral limit, only use Z-limit, do not use Z+
+- 2: Double limit, if Z+ and Z- limit are used at the
+same time, Z+ can limit the maximum stroke of the Z
+axis.
+- T: Z axis end stop wiring type.
+- 0: normally open
+- 1: normally closed
+- S: Z axis end stop position.
+- 0: nearest the base, Z-
+- 1: farthest from the base, Z+
+- C: Response after homing.
+- 0: return to 0
+- 1: stay in the end stop trigger position
+Response:
+M8030
+Description: Action after homing
+Input: M8030 I-1 T-1 S4 C0
+- I: LED_Fan control
+- 0: disabled
+- -1: always on
+- -2: active when printing
+- T: MB_Fan control (Mars carbon filter, Saturn Exhaust)
+- 0: disabled
+- 1: only on while LED is on
+- -1: always on
+- -2: active when printing
+- S: LED light control
+- 4: on when image being displayed
+- C: Action after homing
+- 0: Return to zero point (0,0,0)
+- 1: Stop at limit position
+Response:
+M8034
+Description: USB device support
+Input: M8034 I1
+- I: USB device support
+- 0: disabled
+- 1: enabled
+Response:
+M8070
+Description:
+Input: M8070 Z6 S3
+- Z: peel and lift distance FAST MOVE (mm)
+- S: peel and first move SLOW MOVE (mm)
+Response:
+M8083
+Description: Z axis zero point and limit position setting.
+Input: M8083 I1
+- I: zero and end stop switch position
+- 0: same
+- 1: offset
+Response:
+M8084
+Description: Z-axis end stop offset
+Input: M8084 Z0
+- Z: mm
+Response:
+M8085
+Description: Touch screen settings.
+Input: M8085 I5000 T0
+- I: boot logo duration. (min=100ms, max=6000ms)
+- T: screensaver time to activate
+- 0: disabled
+Response:
+M8087
+Description: External Drive Settings
+Input: M8087 I0 T0
+- I: Settling time of the direction signal to the high level
+of the pulse signal, in nanoseconds
+- T: The minimum hold time of the pulse signal, in ns. If
+there is no external drive control board, set it to zero.
+Response:
+M8093
+Description: Dump debug info to file on USB device.
+Input: M8093 I1
+Response:
+Delete failed :Machine_Errer_Code.status
+Done saving file!
+// Machine_Errer_Code.status
+M8489
+Description: Action after printing is completed.
+Input: M8489 P3
+- P: action after printing is completed
+- 0: disable motors
+- 1: do nothing
+- 2: home Z, disable motors
+- 3: move to Z axis max (up), disable motors
+Response:
+M8500
+Description: Save configuration changes to EEPROM
+Response: ok N:<#>
+M8512
+Description: Write configuration to file on USB device.
+Input: M8512 config_backup.gcode
+Response:
+Delete failed :CONFIG_BACKUP.GCODE
+Done saving file!
+// CONFIG_BACKUP.GCODE
+M8513
+Description: Delete all configuration parameters
+Response: None
+M9003
+Description: Configure WiFi in client mode
+Input: M9003 ‘“wifi_ssid”,”wifi_password”’
+Response: ok N:<#>
+M9005
+Description: Configure WiFi in hotspot mode
+Input: M9005 ‘“my_ssid”,”my_password”’
+Response: ok N:<#>
+M99999
+Description: Local Area Network broadcast, through this instruction to scan the device
+Response: ok MAC:<mac_address> IP:<ip_address> VER:<fw_ver>
+ID:<device_id> Name:<device_name>
+Unknown Codes:
+M23
+Description: Unknown
+Marlin Doc: https://marlinfw.org/docs/gcode/M023.html
+Response: Error:no file was selected!
+M4004
+Description: Unknown
+Input: M4004
+Response: ok C:0
+M5000
+Description: Unknown
+Response: Error:auth length should be 16,yours:-1
+M5002
+Description: Seems to correspond to the “ID:” field in the M8093 dump output. Still not
+sure if it’s a build ID, controller ID or other.
+Response: 0x350041 0x4d485001 0x20393150
+Chitubox Network File Transfer:
+Enabling Chitubox network file transfer
+Edit the default profile ELEGOO_MARS_Pro.cfg located in the install directory.
+<install_path>\CHITUBOX\resource\machine\ELEGOO_MARS_Pro.cfg
+Change the bNetSending key from 0 to 1 and save the file.
+After slicing, Chitubox should now show the Network Sending button:
+File Transfer protocol Explained
+When the Network Sending button is pressed Chitubox broadcasts the M99999 gcode
+command on port 3000 (UDP).
+Response: ok. NAME:<printername> IP:<ip>
+Breakdown:
+<printername> is the name to assign to your printer, for example Mars Pro
+<ip> is the ip address assigned to the device that will receive the file
+Now that Chitubox is able to recognize your device that will receive the file:
+When the send button is pressed, Chitubox will send the M4001 gcode command to the
+device.
+Response: ok. X:0.0 Y:0.0 Z:0.0 U:’UTF-8’
+Next Chitubox will send the M28 <filename> gcode command.
+Response: ok
+Breakdown:
+<filename> is the name of the file being transferred
+Then the file will be transferred with this protocol:
+| Valid Data (k-bytes) | address file position (4 bytes) | test valid data (1byte) | 0x83 |
+In total k + 6 bytes are transferred for each data chunk.
+Data Verification Test
+1. Data ends with 0x83
+2. Address file position is equal to the current index of the file being written
+3. Test valid data is equals the calculation:
+XOR operation between for each k-bytes XOR operation between 4 bytes address file
+position
+The transfer ends with the M29 gcode command.
+If the test fails, send the resend request with:
+resend <address file position>
+Console Observations:
+Power on the printer
+Description: Printed to the console after the printer is powered on.
+Response:
+UART1 init OK
+start
+start
+start_task
+USB disk_OK
+//############Error!cann't open file
+chitu_initial_file_autorun!
+Insert USB Device
+Description: Printed to the console after a USB device is inserted.
+Response:
+USB disk_ok
+ok
+Configuration Backup from M8512 (translated):
+; Version: V4.3.3_LCDC / 1440x2560 /F2.14 ';' is followed by a
+comment
+M8513; Clear previous configuration parameters, restore parameters to
+factory settings, reconfigure parameters
+M8004 I-1; Z motor direction
+M8005 Z0; Z axis 0: extrusion head movement 1: platform movement
+M8006 I30; starting speed
+M8007 I15; rail turning speed
+M8008 I1000; acceleration
+M8010 S0.000625; z mm
+M8013 I5; Z max speed
+M8015 I3; Z first zero speed
+M8016 I3; Z second reset speed
+M8015 P2.000000; Z slowly rising speed
+M8016 P3.000000; Z fast rising and falling speed
+M8016 D1; milliseconds to wait after Z rises
+M8020 S3.000000; Makerware withdrawal length
+M8021 S1.750000; consumable diameter
+M8028 S0.000000; wire back compensation
+M8030 T-2; MB_F control of motherboard cooling fan, 1: follow
+exposure 0: normally closed -1: normally open -2: follow printing
+M8030 S4; LED control, 0: normally closed 1: normally open 2:
+following model printing 4: following exposure
+M8070 S3.000000; each Z moves slowly up the distance
+M8071 X1440 Y2560; projection resolution
+M8070 T0; projector warm-up time
+M8070 Z6.000000; the distance moved by each Z rise
+M8070 I9600; projector baud rate
+M8026 I155.000000; Z maximum travel
+M8029 I0; XY limit 0: minimum limit 1: maximum limit 2: bilateral
+limit
+M8029 T0; limit wiring 0: limit normally open 1: limit normally
+closed
+M8029 S0; Z limit type 0: minimum limit 1: maximum limit
+M8029 C0; Action after XYZ homing 0: Return to zero point (0,0,0) 1:
+Stop at the limit position
+M8034 I1; folder support or not
+M8083 I1; whether to enable auto leveling
+M8030 C0; Action after Z return 0: Return to zero point (0,0,0) 1:
+Stop at limit position
+M8030 I-2; LED fan LED_F control, 1: Follow exposure 0: Normally
+closed -1: Normally open -2: Followed printing
+M8084 Z-0.100000; Delta Z offset, 0: Disable offset, the stroke is
+determined by setting Z to zero, non-zero, the stroke is triggered by
+the leveling trigger position + offset value
+M8085 I5000; Boot logo duration, minimum 100ms, maximum 6000ms
+M8085 T0; standby time of screen saver, unit is second
+M8087 I0 T0; I: Time from direction valid to pulse valid (ns), T:
+Minimum pulse holding time (ns). If there is no external driver,
+please set all to 0
+M9003 "CBD"
+M8500; save configuration
+Diagnostics Dump from M8093 (translated):
+; Version: V4.3.3_LCDC / 1440x2560 /F2.14
+"CBD"
+; ID: 00350041-4d485001-20393150-ff
+;; update: update.SH4
+;; update: update.SH4
+; status.e_temp 10c; Temporary code
+; status.e_other 1; Other
+; status.e_mem 0; SD card USB disk EEPROM FLASH
+; status.e_communication 0; communication
+; status.e_indicator 20; interrupt
+; status.e_driver 0; driver
+; status.e_printer 0; print
+; status.e_LCD 0; LCD
+; status_back.e_temp 0; temporary code
+; status_back.e_other a0008; Print model records
+; status_back.e_mem 400; SD card USB disk EEPROM FLASH
+; status_back.e_communication 0; communication
+; status_back.e_indicator 30; interrupt
+; status_back.e_driver 0; driver
+; status_back.e_printer 0; print
+; status_back.e_LCD 12fd0000; LCD
+; last_save_status_back:
+; status_back.e_temp 0; temporary code
+; status_back.e_other a0008; Print model records
+; status_back.e_mem 400; SD card USB disk EEPROM FLASH
+; status_back.e_communication 0; communication
+; status_back.e_indicator 30; interrupt
+; status_back.e_driver 0; driver
+; status.stop_mask 1; interrupt
+; status_back.e_printer 0; print
+; status_back.e_LCD 12fd0000; LCD
+; LCD pulse1 times 0; LCD pulse 1
+; LCD pulse2 times 0; LCD pulse 2
+; current time 210718967; time
+M8004 I-1 ; Z motor direction
+M8005 Z0 ; Z axis 0: extrusion head movement 1: platform
+movement
+M8006 I30 ; starting speed
+M8007 I15 ; rail turning speed
+M8008 I1000 ; acceleration
+M8010 S0.000625 ; z mm
+M8013 I5 ; Z max speed
+M8015 I3 ; Z first zero speed
+M8016 I3 ; Z second reset speed
+M8015 P2.000000 ; Z slowly rising speed
+M8016 P3.000000 ; Z fast rising and falling speed
+M8026 I155.000000 ; Z maximum travel
+M8030 C0 ; Action after XYZ return 0: Return to zero point
+(0,0,0) 1: Stop at the limit position
+M8034 I1 ; folder support or not
+M8083 I1 ; whether to enable auto leveling
+M8084 Z-0.100000 ; Z offset, 0: Disable offset, the stroke is
+determined by setting Z to zero, non-zero, the stroke is triggered by
+the leveling trigger position + offset value
+M8085 I5000 ; Boot logo duration, minimum 100ms, maximum
+6000ms
+M8085 T0 ; standby time of screen saver, unit is second
+M8087 I0 T0 ; I: Time from direction valid to pulse valid
+(ns), T: Minimum pulse holding time (ns). If there is no external
+driver, please set all to 0
+M8500 ; save configuration
